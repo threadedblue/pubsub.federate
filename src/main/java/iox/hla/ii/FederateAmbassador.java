@@ -8,6 +8,7 @@ import java.util.Set;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.portico.impl.hla1516e.types.HLA1516eParameterHandleValueMap;
 import org.portico.impl.hla1516e.types.time.DoubleTime;
 
 import hla.rti.ObjectNotKnown;
@@ -18,6 +19,7 @@ import hla.rti1516e.NullFederateAmbassador;
 import hla.rti1516e.ObjectClassHandle;
 import hla.rti1516e.ObjectInstanceHandle;
 import hla.rti1516e.OrderType;
+import hla.rti1516e.ParameterHandle;
 import hla.rti1516e.ParameterHandleValueMap;
 import hla.rti1516e.RTIambassador;
 import hla.rti1516e.TransportationTypeHandle;
@@ -35,46 +37,24 @@ public class FederateAmbassador extends NullFederateAmbassador {
 	private final double federateTime = 0.0;
 	private final double federateLookahead = 1.0;
 
-public FederateAmbassador(RTIambassador rtiAmb) {
+	public FederateAmbassador(RTIambassador rtiAmb) {
 		super();
 		this.rtiAmb = rtiAmb;
-	}
-
-	private class ObjectDetails {
-		private ObjectInstanceHandle objectHandle;
-		private ObjectClassHandle objectClass;
-		private String objectName;
-
-		public ObjectDetails(ObjectInstanceHandle objectHandle, ObjectClassHandle objectClass, String objectName) {
-			this.objectHandle = objectHandle;
-			this.objectClass = objectClass;
-			this.objectName = objectName;
-		}
-
-		public ObjectClassHandle getObjectClass() {
-			return objectClass;
-		}
-
-		public String getObjectName() {
-			return objectName;
-		}
 	}
 
 	// synchronization point labels that have been announced but not achieved
 	private Set<String> pendingSynchronizationPoints = new HashSet<String>();
 
-//	private Set<String> _achievedSynchronizationPoints = new HashSet<String>();
-
 	// map the handle for a discovered object instance to its associated
-	// ObjectDetails
-	private Map<ObjectInstanceHandle, ObjectDetails> objectInstances = new HashMap<ObjectInstanceHandle, ObjectDetails>();
+	// ObjectRef
+	private Map<ObjectInstanceHandle, ObjectRef> objectInstances = new HashMap<ObjectInstanceHandle, ObjectRef>();
 
 	// names of previously discovered object instances that have since been
 	// removed
 	private LinkedList<String> removedObjectNames = new LinkedList<String>();
 
-	private LinkedList<Interaction> receivedInteractions = new LinkedList<Interaction>();
-	private LinkedList<ObjectReflection> receivedObjectReflections = new LinkedList<ObjectReflection>();
+	private LinkedList<InteractionRef> receivedInteractions = new LinkedList<InteractionRef>();
+	private LinkedList<ObjectRef> receivedObjectReflections = new LinkedList<ObjectRef>();
 
 	private boolean isTimeAdvancing = false;
 	private boolean isTimeRegulating = false;
@@ -91,13 +71,6 @@ public FederateAmbassador(RTIambassador rtiAmb) {
 			log.info("synchronization point announced: " + synchronizationPointLabel);
 		}
 	}
-
-//	 @Override
-//	 public void federationSynchronized(String synchronizationPointLabel) {
-//	 pendingSynchronizationPoints.remove(synchronizationPointLabel);
-//	 _achievedSynchronizationPoints.add(synchronizationPointLabel);
-//	 log.info("synchronization point achieved: " + synchronizationPointLabel);
-//	 }
 
 	@Override
 	public void timeRegulationEnabled(LogicalTime theFederateTime) {
@@ -140,56 +113,55 @@ public FederateAmbassador(RTIambassador rtiAmb) {
 		try {
 			interactionName = rtiAmb.getInteractionClassName(interactionClassHandle);
 		} catch (InvalidInteractionClassHandle | FederateNotExecutionMember | NotConnected | RTIinternalError e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			log.error(e);
 		}
 		log.info("received interaction: handle=" + interactionClassHandle);
-		receivedInteractions.add(new Interaction(interactionClassHandle, interactionName, parameters));
+		receivedInteractions.add(new InteractionRef(interactionClassHandle, interactionName, parameters));
 	}
 
 	@Override
-	public void discoverObjectInstance(ObjectInstanceHandle theObject, ObjectClassHandle theObjectClass,
+	public void discoverObjectInstance(ObjectInstanceHandle objectInstanceHandle, ObjectClassHandle objectClassHandle,
 			String objectName) throws FederateInternalError {
-		log.info("discovered new object instance: (handle, class, name)=" + "(" + theObject + ", " + theObjectClass
+		log.info("discovered new object instance: (handle, class, name)=" + "(" + objectInstanceHandle + ", " + objectClassHandle
 				+ ", " + objectName + ")");
-		if (objectInstances.get(theObject) == null) {
-			objectInstances.put(theObject, new ObjectDetails(theObject, theObjectClass, objectName));
+		if (objectInstances.get(objectInstanceHandle) == null) {
+			objectInstances.put(objectInstanceHandle, new ObjectRef(objectInstanceHandle, objectClassHandle, objectName, null));
 		} else {
 			log.debug(String.format("Already discovered: theObject=%d theObjectClass=%d objectName=%s its ok carry on",
-					theObject, theObjectClass, objectName));
+					objectInstanceHandle, objectClassHandle, objectName));
 		}
 	}
 
 	@Override
-	public void reflectAttributeValues(ObjectInstanceHandle theObject, AttributeHandleValueMap theAttributes,
+	public void reflectAttributeValues(ObjectInstanceHandle objectInstanceHandle, AttributeHandleValueMap attributes,
 			byte[] userSuppliedTag, OrderType sentOrder, TransportationTypeHandle transport,
 			SupplementalReflectInfo reflectInfo) throws FederateInternalError {
-		reflectAttributeValues(theObject, theAttributes, userSuppliedTag, sentOrder, transport, null, sentOrder,
+		reflectAttributeValues(objectInstanceHandle, attributes, userSuppliedTag, sentOrder, transport, null, sentOrder,
 				reflectInfo);
 	}
 
 	@Override
-	public void reflectAttributeValues(ObjectInstanceHandle theObject, AttributeHandleValueMap theAttributes,
+	public void reflectAttributeValues(ObjectInstanceHandle objectInstanceHandle, AttributeHandleValueMap attributes,
 			byte[] userSuppliedTag, OrderType sentOrdering, TransportationTypeHandle theTransport, LogicalTime theTime,
 			OrderType receivedOrdering, SupplementalReflectInfo reflectInfo) throws FederateInternalError {
-		ObjectDetails details = objectInstances.get(theObject);
-		if (details == null) {
+		ObjectRef objectRef = objectInstances.get(objectInstanceHandle);
+		if (objectRef == null) {
 			try {
-				throw new ObjectNotKnown("no discovered object instance with handle " + theObject);
+				throw new ObjectNotKnown("no discovered object instance with handle " + objectInstanceHandle);
 			} catch (ObjectNotKnown e) {
 				log.error(e);
 			}
 		}
-		ObjectClassHandle theObjectClass = details.getObjectClass();
-		String objectName = details.getObjectName();
-		receivedObjectReflections.add(new ObjectReflection(theObjectClass, objectName, theAttributes));
+		ObjectClassHandle objectClassHandle = objectRef.getObjectClassHandle();
+		String objectName = objectRef.getObjectName();
+		receivedObjectReflections.add(new ObjectRef(objectInstanceHandle, objectClassHandle, objectName, attributes));
 		log.info("received object reflection for the object instance " + objectName);
 	}
 
 	@Override
 	public void removeObjectInstance(ObjectInstanceHandle theObject, byte[] userSuppliedTag, OrderType sentOrdering,
 			SupplementalRemoveInfo removeInfo) throws FederateInternalError {
-		ObjectDetails details = objectInstances.remove(theObject);
+		ObjectRef details = objectInstances.remove(theObject);
 		if (details == null) {
 			try {
 				throw new ObjectNotKnown("no discovered object instance with handle " + theObject);
@@ -234,11 +206,11 @@ public FederateAmbassador(RTIambassador rtiAmb) {
 		return isTimeConstrained;
 	}
 
-	public Interaction nextInteraction() {
+	public InteractionRef nextInteraction() {
 		return receivedInteractions.pollFirst(); // destructive read
 	}
 
-	public ObjectReflection nextObjectReflection() {
+	public ObjectRef nextObjectReflection() {
 		return receivedObjectReflections.pollFirst(); // destructive read
 	}
 

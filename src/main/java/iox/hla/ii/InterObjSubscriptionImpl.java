@@ -21,9 +21,8 @@ public abstract class InterObjSubscriptionImpl implements InterObjSubscription {
 	}
 
 	@Override
-	public EObject receiveObject(Double timeStep, String objectClassName, String objectName,
-			Map<String, byte[]> attributes) {
-		return receiveInteraction(timeStep, objectClassName, attributes);
+	public EObject receiveObject(Double timeStep, EObject object) {
+		return receiveInteraction(timeStep, object);
 	}
 
 }
