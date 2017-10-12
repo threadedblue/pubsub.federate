@@ -12,15 +12,15 @@ import hla.rti.NameNotFound;
 import hla.rti.ObjectNotKnown;
 import hla.rti.RTIinternalError;
 
-public abstract class InterObjIPublicationImpl implements InterObjIPublication {
+public abstract class PublishImpl implements Publish {
 
 	private static final long serialVersionUID = -3409552497539566001L;
 
 	private static final Logger log = LogManager
-			.getLogger(InterObjIPublicationImpl.class);
+			.getLogger(PublishImpl.class);
 	Queue<EObject> publications = new ConcurrentLinkedQueue<EObject>();
 
-	public InterObjIPublicationImpl() {
+	public PublishImpl() {
 		super();
 	}
 	

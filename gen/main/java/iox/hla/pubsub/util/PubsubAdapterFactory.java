@@ -1,6 +1,8 @@
 /**
  */
-package pubsub.util;
+package iox.hla.pubsub.util;
+
+import iox.hla.pubsub.*;
 
 import org.eclipse.emf.common.notify.Adapter;
 import org.eclipse.emf.common.notify.Notifier;
@@ -9,14 +11,12 @@ import org.eclipse.emf.common.notify.impl.AdapterFactoryImpl;
 
 import org.eclipse.emf.ecore.EObject;
 
-import pubsub.*;
-
 /**
  * <!-- begin-user-doc -->
  * The <b>Adapter Factory</b> for the model.
  * It provides an adapter <code>createXXX</code> method for each class of the model.
  * <!-- end-user-doc -->
- * @see pubsub.PubsubPackage
+ * @see iox.hla.pubsub.PubsubPackage
  * @generated
  */
 public class PubsubAdapterFactory extends AdapterFactoryImpl {
@@ -100,13 +100,13 @@ public class PubsubAdapterFactory extends AdapterFactoryImpl {
 
 
 	/**
-	 * Creates a new adapter for an object of class '{@link pubsub.Message <em>Message</em>}'.
+	 * Creates a new adapter for an object of class '{@link iox.hla.pubsub.Message <em>Message</em>}'.
 	 * <!-- begin-user-doc -->
 	 * This default implementation returns null so that we can easily ignore cases;
 	 * it's useful to ignore a case when inheritance will catch all the cases anyway.
 	 * <!-- end-user-doc -->
 	 * @return the new adapter.
-	 * @see pubsub.Message
+	 * @see iox.hla.pubsub.Message
 	 * @generated
 	 */
 	public Adapter createMessageAdapter() {
@@ -114,13 +114,13 @@ public class PubsubAdapterFactory extends AdapterFactoryImpl {
 	}
 
 	/**
-	 * Creates a new adapter for an object of class '{@link pubsub.HLAInteraction <em>HLA Interaction</em>}'.
+	 * Creates a new adapter for an object of class '{@link iox.hla.pubsub.HLAInteraction <em>HLA Interaction</em>}'.
 	 * <!-- begin-user-doc -->
 	 * This default implementation returns null so that we can easily ignore cases;
 	 * it's useful to ignore a case when inheritance will catch all the cases anyway.
 	 * <!-- end-user-doc -->
 	 * @return the new adapter.
-	 * @see pubsub.HLAInteraction
+	 * @see iox.hla.pubsub.HLAInteraction
 	 * @generated
 	 */
 	public Adapter createHLAInteractionAdapter() {
@@ -128,13 +128,13 @@ public class PubsubAdapterFactory extends AdapterFactoryImpl {
 	}
 
 	/**
-	 * Creates a new adapter for an object of class '{@link pubsub.HLAObject <em>HLA Object</em>}'.
+	 * Creates a new adapter for an object of class '{@link iox.hla.pubsub.HLAObject <em>HLA Object</em>}'.
 	 * <!-- begin-user-doc -->
 	 * This default implementation returns null so that we can easily ignore cases;
 	 * it's useful to ignore a case when inheritance will catch all the cases anyway.
 	 * <!-- end-user-doc -->
 	 * @return the new adapter.
-	 * @see pubsub.HLAObject
+	 * @see iox.hla.pubsub.HLAObject
 	 * @generated
 	 */
 	public Adapter createHLAObjectAdapter() {

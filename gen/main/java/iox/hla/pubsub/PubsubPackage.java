@@ -1,6 +1,6 @@
 /**
  */
-package pubsub;
+package iox.hla.pubsub;
 
 import org.eclipse.emf.ecore.EAttribute;
 import org.eclipse.emf.ecore.EClass;
@@ -18,7 +18,7 @@ import org.eclipse.emf.ecore.EPackage;
  *   <li>and each data type</li>
  * </ul>
  * <!-- end-user-doc -->
- * @see pubsub.PubsubFactory
+ * @see iox.hla.pubsub.PubsubFactory
  * @model kind="package"
  * @generated
  */
@@ -45,7 +45,7 @@ public interface PubsubPackage extends EPackage {
 	 * <!-- end-user-doc -->
 	 * @generated
 	 */
-	String eNS_PREFIX = "pubsub";
+	String eNS_PREFIX = "iox.hla.pubsub";
 
 	/**
 	 * The singleton instance of the package.
@@ -53,14 +53,14 @@ public interface PubsubPackage extends EPackage {
 	 * <!-- end-user-doc -->
 	 * @generated
 	 */
-	PubsubPackage eINSTANCE = pubsub.impl.PubsubPackageImpl.init();
+	PubsubPackage eINSTANCE = iox.hla.pubsub.impl.PubsubPackageImpl.init();
 
 	/**
-	 * The meta object id for the '{@link pubsub.impl.MessageImpl <em>Message</em>}' class.
+	 * The meta object id for the '{@link iox.hla.pubsub.impl.MessageImpl <em>Message</em>}' class.
 	 * <!-- begin-user-doc -->
 	 * <!-- end-user-doc -->
-	 * @see pubsub.impl.MessageImpl
-	 * @see pubsub.impl.PubsubPackageImpl#getMessage()
+	 * @see iox.hla.pubsub.impl.MessageImpl
+	 * @see iox.hla.pubsub.impl.PubsubPackageImpl#getMessage()
 	 * @generated
 	 */
 	int MESSAGE = 0;
@@ -92,13 +92,12 @@ public interface PubsubPackage extends EPackage {
 	 */
 	int MESSAGE_OPERATION_COUNT = 0;
 
-
 	/**
-	 * The meta object id for the '{@link pubsub.HLAInteraction <em>HLA Interaction</em>}' class.
+	 * The meta object id for the '{@link iox.hla.pubsub.impl.HLAInteractionImpl <em>HLA Interaction</em>}' class.
 	 * <!-- begin-user-doc -->
 	 * <!-- end-user-doc -->
-	 * @see pubsub.HLAInteraction
-	 * @see pubsub.impl.PubsubPackageImpl#getHLAInteraction()
+	 * @see iox.hla.pubsub.impl.HLAInteractionImpl
+	 * @see iox.hla.pubsub.impl.PubsubPackageImpl#getHLAInteraction()
 	 * @generated
 	 */
 	int HLA_INTERACTION = 1;
@@ -122,11 +121,11 @@ public interface PubsubPackage extends EPackage {
 	int HLA_INTERACTION_OPERATION_COUNT = 0;
 
 	/**
-	 * The meta object id for the '{@link pubsub.HLAObject <em>HLA Object</em>}' class.
+	 * The meta object id for the '{@link iox.hla.pubsub.impl.HLAObjectImpl <em>HLA Object</em>}' class.
 	 * <!-- begin-user-doc -->
 	 * <!-- end-user-doc -->
-	 * @see pubsub.HLAObject
-	 * @see pubsub.impl.PubsubPackageImpl#getHLAObject()
+	 * @see iox.hla.pubsub.impl.HLAObjectImpl
+	 * @see iox.hla.pubsub.impl.PubsubPackageImpl#getHLAObject()
 	 * @generated
 	 */
 	int HLA_OBJECT = 2;
@@ -151,42 +150,42 @@ public interface PubsubPackage extends EPackage {
 
 
 	/**
-	 * Returns the meta object for class '{@link pubsub.Message <em>Message</em>}'.
+	 * Returns the meta object for class '{@link iox.hla.pubsub.Message <em>Message</em>}'.
 	 * <!-- begin-user-doc -->
 	 * <!-- end-user-doc -->
 	 * @return the meta object for class '<em>Message</em>'.
-	 * @see pubsub.Message
+	 * @see iox.hla.pubsub.Message
 	 * @generated
 	 */
 	EClass getMessage();
 
 	/**
-	 * Returns the meta object for the attribute '{@link pubsub.Message#getMessage <em>Message</em>}'.
+	 * Returns the meta object for the attribute '{@link iox.hla.pubsub.Message#getMessage <em>Message</em>}'.
 	 * <!-- begin-user-doc -->
 	 * <!-- end-user-doc -->
 	 * @return the meta object for the attribute '<em>Message</em>'.
-	 * @see pubsub.Message#getMessage()
+	 * @see iox.hla.pubsub.Message#getMessage()
 	 * @see #getMessage()
 	 * @generated
 	 */
 	EAttribute getMessage_Message();
 
 	/**
-	 * Returns the meta object for class '{@link pubsub.HLAInteraction <em>HLA Interaction</em>}'.
+	 * Returns the meta object for class '{@link iox.hla.pubsub.HLAInteraction <em>HLA Interaction</em>}'.
 	 * <!-- begin-user-doc -->
 	 * <!-- end-user-doc -->
 	 * @return the meta object for class '<em>HLA Interaction</em>'.
-	 * @see pubsub.HLAInteraction
+	 * @see iox.hla.pubsub.HLAInteraction
 	 * @generated
 	 */
 	EClass getHLAInteraction();
 
 	/**
-	 * Returns the meta object for class '{@link pubsub.HLAObject <em>HLA Object</em>}'.
+	 * Returns the meta object for class '{@link iox.hla.pubsub.HLAObject <em>HLA Object</em>}'.
 	 * <!-- begin-user-doc -->
 	 * <!-- end-user-doc -->
 	 * @return the meta object for class '<em>HLA Object</em>'.
-	 * @see pubsub.HLAObject
+	 * @see iox.hla.pubsub.HLAObject
 	 * @generated
 	 */
 	EClass getHLAObject();
@@ -215,11 +214,11 @@ public interface PubsubPackage extends EPackage {
 	 */
 	interface Literals {
 		/**
-		 * The meta object literal for the '{@link pubsub.impl.MessageImpl <em>Message</em>}' class.
+		 * The meta object literal for the '{@link iox.hla.pubsub.impl.MessageImpl <em>Message</em>}' class.
 		 * <!-- begin-user-doc -->
 		 * <!-- end-user-doc -->
-		 * @see pubsub.impl.MessageImpl
-		 * @see pubsub.impl.PubsubPackageImpl#getMessage()
+		 * @see iox.hla.pubsub.impl.MessageImpl
+		 * @see iox.hla.pubsub.impl.PubsubPackageImpl#getMessage()
 		 * @generated
 		 */
 		EClass MESSAGE = eINSTANCE.getMessage();
@@ -233,21 +232,21 @@ public interface PubsubPackage extends EPackage {
 		EAttribute MESSAGE__MESSAGE = eINSTANCE.getMessage_Message();
 
 		/**
-		 * The meta object literal for the '{@link pubsub.HLAInteraction <em>HLA Interaction</em>}' class.
+		 * The meta object literal for the '{@link iox.hla.pubsub.impl.HLAInteractionImpl <em>HLA Interaction</em>}' class.
 		 * <!-- begin-user-doc -->
 		 * <!-- end-user-doc -->
-		 * @see pubsub.HLAInteraction
-		 * @see pubsub.impl.PubsubPackageImpl#getHLAInteraction()
+		 * @see iox.hla.pubsub.impl.HLAInteractionImpl
+		 * @see iox.hla.pubsub.impl.PubsubPackageImpl#getHLAInteraction()
 		 * @generated
 		 */
 		EClass HLA_INTERACTION = eINSTANCE.getHLAInteraction();
 
 		/**
-		 * The meta object literal for the '{@link pubsub.HLAObject <em>HLA Object</em>}' class.
+		 * The meta object literal for the '{@link iox.hla.pubsub.impl.HLAObjectImpl <em>HLA Object</em>}' class.
 		 * <!-- begin-user-doc -->
 		 * <!-- end-user-doc -->
-		 * @see pubsub.HLAObject
-		 * @see pubsub.impl.PubsubPackageImpl#getHLAObject()
+		 * @see iox.hla.pubsub.impl.HLAObjectImpl
+		 * @see iox.hla.pubsub.impl.PubsubPackageImpl#getHLAObject()
 		 * @generated
 		 */
 		EClass HLA_OBJECT = eINSTANCE.getHLAObject();

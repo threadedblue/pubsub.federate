@@ -1,12 +1,12 @@
 package iox.hla.ii;
 
-import java.util.Map;
-
 import org.eclipse.emf.ecore.EObject;
 
-public interface InterObjSubscription {
+public interface Subscribe {
 
 	EObject receiveInteraction(Double timeStep, EObject interaction);
 	
 	EObject receiveObject(Double timeStep, EObject object);
+
+	void receiveMessage(Double timeStep, EObject message);
 }

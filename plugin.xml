@@ -10,8 +10,7 @@
       <!-- @generated pubsub -->
       <package
             uri="http://pubsub"
-            class="pubsub.PubsubPackage"
-            genModel="model/pubsub.genmodel"/>
+            class="iox.hla.pubsub.PubsubPackage"/>
    </extension>
 
 </plugin>

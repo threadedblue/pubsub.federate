@@ -1,18 +1,18 @@
 /**
  */
-package pubsub.impl;
+package iox.hla.pubsub.impl;
+
+import iox.hla.pubsub.HLAInteraction;
+import iox.hla.pubsub.HLAObject;
+import iox.hla.pubsub.Message;
+import iox.hla.pubsub.PubsubFactory;
+import iox.hla.pubsub.PubsubPackage;
 
 import org.eclipse.emf.ecore.EAttribute;
 import org.eclipse.emf.ecore.EClass;
 import org.eclipse.emf.ecore.EPackage;
 
 import org.eclipse.emf.ecore.impl.EPackageImpl;
-
-import pubsub.HLAInteraction;
-import pubsub.HLAObject;
-import pubsub.Message;
-import pubsub.PubsubFactory;
-import pubsub.PubsubPackage;
 
 /**
  * <!-- begin-user-doc -->
@@ -34,6 +34,7 @@ public class PubsubPackageImpl extends EPackageImpl implements PubsubPackage {
 	 * @generated
 	 */
 	private EClass hlaInteractionEClass = null;
+
 	/**
 	 * <!-- begin-user-doc -->
 	 * <!-- end-user-doc -->
@@ -52,7 +53,7 @@ public class PubsubPackageImpl extends EPackageImpl implements PubsubPackage {
 	 * <!-- begin-user-doc -->
 	 * <!-- end-user-doc -->
 	 * @see org.eclipse.emf.ecore.EPackage.Registry
-	 * @see pubsub.PubsubPackage#eNS_URI
+	 * @see iox.hla.pubsub.PubsubPackage#eNS_URI
 	 * @see #init()
 	 * @generated
 	 */
@@ -207,9 +208,9 @@ public class PubsubPackageImpl extends EPackageImpl implements PubsubPackage {
 		initEClass(messageEClass, Message.class, "Message", !IS_ABSTRACT, !IS_INTERFACE, IS_GENERATED_INSTANCE_CLASS);
 		initEAttribute(getMessage_Message(), ecorePackage.getEString(), "message", null, 0, 1, Message.class, !IS_TRANSIENT, !IS_VOLATILE, IS_CHANGEABLE, !IS_UNSETTABLE, !IS_ID, IS_UNIQUE, !IS_DERIVED, IS_ORDERED);
 
-		initEClass(hlaInteractionEClass, HLAInteraction.class, "HLAInteraction", IS_ABSTRACT, IS_INTERFACE, IS_GENERATED_INSTANCE_CLASS);
+		initEClass(hlaInteractionEClass, HLAInteraction.class, "HLAInteraction", !IS_ABSTRACT, !IS_INTERFACE, IS_GENERATED_INSTANCE_CLASS);
 
-		initEClass(hlaObjectEClass, HLAObject.class, "HLAObject", IS_ABSTRACT, IS_INTERFACE, IS_GENERATED_INSTANCE_CLASS);
+		initEClass(hlaObjectEClass, HLAObject.class, "HLAObject", !IS_ABSTRACT, !IS_INTERFACE, IS_GENERATED_INSTANCE_CLASS);
 
 		// Create resource
 		createResource(eNS_URI);

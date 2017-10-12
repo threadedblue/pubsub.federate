@@ -12,11 +12,16 @@ configure(install.repositories.mavenInstaller) {
 
 sourceCompatibility = 1.8
 version = '0.0.1'
+
 repositories {
     maven {url 'file://' + new File(System.getProperty('user.home'), '.m2/repository').absolutePath;}
     jcenter()
 }
 
+ jar {
+     from sourceSets.main.allSource
+ }
+ 
 sourceSets {
     main {
         java {
@@ -39,6 +44,6 @@ dependencies {
     compile 'org.porticoproject:portico:2.1.0'
     compile 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.3.0'
     compile 'com.fasterxml.jackson.core:jackson-databind:2.2.3'
-    testCompile 'junit:junit:4.+'
-    testCompile 'iox.emf:littleEMF:0.0.2'
+    compile 'junit:junit:4.+'
+    compile 'iox.emf:littleEMF:0.0.2'
 }

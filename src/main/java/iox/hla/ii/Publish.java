@@ -9,7 +9,7 @@ import hla.rti.NameNotFound;
 import hla.rti.ObjectNotKnown;
 import hla.rti.RTIinternalError;
 
-public interface InterObjIPublication {
+public interface Publish {
 	
 	public Queue<EObject> getPreSynchInteractions();
 

@@ -91,6 +91,7 @@ import pubsub.Message;
 import pubsub.PubsubFactory;
 
 public class PubSubFederate implements Runnable {
+	
 	private static final Logger log = LogManager.getLogger(PubSubFederate.class);
 
 	private static final int MAX_JOIN_ATTEMPTS = 6;
@@ -133,9 +134,9 @@ public class PubSubFederate implements Runnable {
 	private String federationName;
 	private static String fomFilePath;
 
-	private InterObjIPublication interObjectInjection;
+	private Publish interObjectInjection;
 
-	private InterObjSubscription interObjectReception;
+	private Subscribe interObjectReception;
 
 	private TimeStepHook timeStepHook;
 
@@ -346,12 +347,6 @@ public class PubSubFederate implements Runnable {
 					Object obj = EcoreUtil.createFromString(eDataType, new String(entry.getValue()));
 					eObject.eSet(eAttribute, obj);
 				}
-				// ObjectClassHandle objectClassHandle =
-				// receivedObjectReflection.getObjectClassHandle();
-				// String objectClassName = rtiAmb.getObjectClassName(objectClassHandle);
-				// String objectName = receivedObjectReflection.getObjectName();
-				// Map<String, byte[]> parameters = mapAttributes(objectClassHandle,
-				// receivedObjectReflection);
 				interObjectReception.receiveObject(logicalTime, eObject);
 			}
 
@@ -823,33 +818,6 @@ public class PubSubFederate implements Runnable {
 		}
 	}
 
-	// public double getLBTS() {
-	// LogicalTime lbtsTime = null;
-	// boolean timeNotAcquired = true;
-	// while (timeNotAcquired) {
-	// try {
-	// synchronized (rtiAmb) {
-	// lbtsTime = rtiAmb.queryLogicalTime();
-	// }
-	// timeNotAcquired = false;
-	// } catch (FederateNotExecutionMember f) {
-	// log.error("SynchronizedFederate: getLBTS: ERROR: Federate not execution
-	// member");
-	// log.error(f);
-	// return -1;
-	// } catch (Exception e) {
-	// log.error("SynchronizedFederate: getLBTS: Exception caught: " +
-	// e.getMessage());
-	// log.error(e);
-	// return -1;
-	// }
-	// }
-	//
-	// DoubleTime doubleTime = new DoubleTime();
-	// doubleTime.setTo(lbtsTime);
-	// return lbtsTime.;
-	// }
-
 	public Set<InteractionClassType> getInteractionSubscribe() {
 		Set<InteractionClassType> set = new HashSet<InteractionClassType>();
 		for (InteractionClassType itr : getFom().getInteractions().getInteractionClass().getInteractionClass()) {
@@ -929,19 +897,19 @@ public class PubSubFederate implements Runnable {
 		return oct;
 	}
 
-	public InterObjIPublication getInterObjectInjection() {
+	public Publish getInterObjectInjection() {
 		return interObjectInjection;
 	}
 
-	public void setInterObjectInjection(InterObjIPublication interObjectInjection) {
+	public void setInterObjectInjection(Publish interObjectInjection) {
 		this.interObjectInjection = interObjectInjection;
 	}
 
-	public InterObjSubscription getInterObjectReception() {
+	public Subscribe getInterObjectReception() {
 		return interObjectReception;
 	}
 
-	public void setInterObjectReception(InterObjSubscription interObjectReception) {
+	public void setInterObjectReception(Subscribe interObjectReception) {
 		this.interObjectReception = interObjectReception;
 	}
 
