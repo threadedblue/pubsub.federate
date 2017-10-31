@@ -2,14 +2,17 @@ package iox.hla.ii;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.eclipse.emf.ecore.EClass;
 import org.eclipse.emf.ecore.EObject;
 
-public abstract class SubscribeImpl implements Subscribe {
+public class SubscribeImpl implements Subscribe {
 
 	private static final Logger log = LogManager.getLogger(SubscribeImpl.class);
 
 	@Override
 	public EObject receiveInteraction(Double timeStep, EObject interaction) {
+		EClass eClass = interaction.eClass();
+//		if("TerminateInteraction".eClass.getName())
 		return interaction;
 	}
 

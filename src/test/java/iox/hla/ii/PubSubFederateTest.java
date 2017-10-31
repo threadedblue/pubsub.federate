@@ -16,7 +16,7 @@ import org.ieee.standards.ieee1516._2010.ObjectClassType;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import iox.hla.ii.exception.RTIAmbassadorException;
+import iox.hla.core.RTIAmbassadorException;
 import iox.sds4emf.Registrar;
 import littleints.theseints.TheseintsPackage;
 import littleints.thoseInts.ThoseIntsPackage;

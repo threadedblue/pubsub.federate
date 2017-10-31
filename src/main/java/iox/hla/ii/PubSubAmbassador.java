@@ -1,97 +1,40 @@
 package iox.hla.ii;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Map;
-import java.util.Set;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.portico.impl.hla1516e.types.HLA1516eParameterHandleValueMap;
-import org.portico.impl.hla1516e.types.time.DoubleTime;
 
 import hla.rti.ObjectNotKnown;
 import hla.rti1516e.AttributeHandleValueMap;
 import hla.rti1516e.InteractionClassHandle;
 import hla.rti1516e.LogicalTime;
-import hla.rti1516e.NullFederateAmbassador;
 import hla.rti1516e.ObjectClassHandle;
 import hla.rti1516e.ObjectInstanceHandle;
 import hla.rti1516e.OrderType;
-import hla.rti1516e.ParameterHandle;
 import hla.rti1516e.ParameterHandleValueMap;
-import hla.rti1516e.RTIambassador;
 import hla.rti1516e.TransportationTypeHandle;
 import hla.rti1516e.exceptions.FederateInternalError;
-import hla.rti1516e.exceptions.FederateNotExecutionMember;
-import hla.rti1516e.exceptions.InvalidInteractionClassHandle;
-import hla.rti1516e.exceptions.NotConnected;
-import hla.rti1516e.exceptions.RTIinternalError;
+import iox.hla.core.FederateAmbassador;
+import iox.hla.core.InteractionRef;
+import iox.hla.core.ObjectRef;
 
 // We assume single threaded environment
-public class FederateAmbassador extends NullFederateAmbassador {
+public class PubSubAmbassador extends FederateAmbassador {
 	private static final Logger log = LogManager.getLogger();
 
-	RTIambassador rtiAmb;
-	private final double federateTime = 0.0;
-	private final double federateLookahead = 1.0;
-
-	public FederateAmbassador(RTIambassador rtiAmb) {
+	public PubSubAmbassador() {
 		super();
-		this.rtiAmb = rtiAmb;
 	}
 
-	// synchronization point labels that have been announced but not achieved
-	private Set<String> pendingSynchronizationPoints = new HashSet<String>();
-
-	// map the handle for a discovered object instance to its associated
-	// ObjectRef
 	private Map<ObjectInstanceHandle, ObjectRef> objectInstances = new HashMap<ObjectInstanceHandle, ObjectRef>();
 
-	// names of previously discovered object instances that have since been
-	// removed
 	private LinkedList<String> removedObjectNames = new LinkedList<String>();
 
 	private LinkedList<InteractionRef> receivedInteractions = new LinkedList<InteractionRef>();
 	private LinkedList<ObjectRef> receivedObjectReflections = new LinkedList<ObjectRef>();
-
-	private boolean isTimeAdvancing = false;
-	private boolean isTimeRegulating = false;
-	private boolean isTimeConstrained = false;
-
-	private double logicalTime = 0D;
-
-	@Override
-	public void announceSynchronizationPoint(String synchronizationPointLabel, byte[] userSuppliedTag) {
-		if (pendingSynchronizationPoints.contains(synchronizationPointLabel)) {
-			log.warn("duplicate announcement of synchronization point: " + synchronizationPointLabel);
-		} else {
-			pendingSynchronizationPoints.add(synchronizationPointLabel);
-			log.info("synchronization point announced: " + synchronizationPointLabel);
-		}
-	}
-
-	@Override
-	public void timeRegulationEnabled(LogicalTime theFederateTime) {
-		isTimeRegulating = true;
-		logicalTime = convertTime(theFederateTime);
-		log.debug("time regulation enabled: t=" + logicalTime);
-	}
-
-	@Override
-	public void timeConstrainedEnabled(LogicalTime theFederateTime) {
-		isTimeConstrained = true;
-		logicalTime = convertTime(theFederateTime);
-		log.debug("time constrained enabled: t=" + logicalTime);
-	}
-
-	@Override
-	public void timeAdvanceGrant(LogicalTime theTime) {
-		isTimeAdvancing = false;
-		logicalTime = convertTime(theTime);
-		log.debug("time advance granted: t=" + logicalTime);
-	}
 
 	@Override
 	public void receiveInteraction(InteractionClassHandle interactionClass, ParameterHandleValueMap theInteraction,
@@ -109,14 +52,8 @@ public class FederateAmbassador extends NullFederateAmbassador {
 	public void receiveInteraction(InteractionClassHandle interactionClassHandle, ParameterHandleValueMap parameters,
 			byte[] userSuppliedTag, OrderType sentOrdering, TransportationTypeHandle theTransport, LogicalTime theTime,
 			OrderType receivedOrdering, SupplementalReceiveInfo receiveInfo) throws FederateInternalError {
-		String interactionName = null;
-		try {
-			interactionName = rtiAmb.getInteractionClassName(interactionClassHandle);
-		} catch (InvalidInteractionClassHandle | FederateNotExecutionMember | NotConnected | RTIinternalError e) {
-			log.error(e);
-		}
 		log.info("received interaction: handle=" + interactionClassHandle);
-		receivedInteractions.add(new InteractionRef(interactionClassHandle, interactionName, parameters));
+		receivedInteractions.add(new InteractionRef(interactionClassHandle, parameters));
 	}
 
 	@Override
@@ -174,38 +111,6 @@ public class FederateAmbassador extends NullFederateAmbassador {
 		log.info("received notice to remove object instance with handle=" + theObject + " and name=" + objectName);
 	}
 
-	public boolean isSynchronizationPointPending(String label) {
-		return pendingSynchronizationPoints.contains(label);
-	}
-
-	public double getFederateTime() {
-		return federateTime;
-	}
-
-	public double getFederateLookahead() {
-		return federateLookahead;
-	}
-
-	public double getLogicalTime() {
-		return logicalTime;
-	}
-
-	public void setTimeAdvancing() {
-		isTimeAdvancing = true;
-	}
-
-	public boolean isTimeAdvancing() {
-		return isTimeAdvancing;
-	}
-
-	public boolean isTimeRegulating() {
-		return isTimeRegulating;
-	}
-
-	public boolean isTimeConstrained() {
-		return isTimeConstrained;
-	}
-
 	public InteractionRef nextInteraction() {
 		return receivedInteractions.pollFirst(); // destructive read
 	}
@@ -216,10 +121,5 @@ public class FederateAmbassador extends NullFederateAmbassador {
 
 	public String nextRemovedObjectName() {
 		return removedObjectNames.pollFirst(); // destructive read
-	}
-
-	private double convertTime(LogicalTime logicalTime) {
-		// conversion from portico to java types
-		return ((DoubleTime) logicalTime).getTime();
 	}
 }

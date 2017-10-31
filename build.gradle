@@ -1,17 +1,19 @@
-apply plugin: 'java-library'
+apply plugin: 'java'
 apply plugin: 'eclipse'
 apply plugin: 'maven'
+
+sourceCompatibility = 1.8
+group = 'iox.hla'
+version = '0.0.1'
+
 configure(install.repositories.mavenInstaller) {
     pom.project {
-        groupId 'iox.hla'
-        artifactId 'pubsub.federate'
+        groupId group
+        artifactId 'pubsub-federate'
         inceptionYear '2017'
         packaging 'jar'
     }
 }
-
-sourceCompatibility = 1.8
-version = '0.0.1'
 
 repositories {
     maven {url 'file://' + new File(System.getProperty('user.home'), '.m2/repository').absolutePath;}
@@ -25,13 +27,25 @@ repositories {
 sourceSets {
     main {
         java {
-            srcDirs 'src'
-            srcDirs 'gen'
+            srcDirs 'src/main/java'
+            srcDirs 'gen/main/java'
          }
     }
- }
+    test {
+        java {
+            srcDirs 'src/test/java'
+            srcDirs 'src/test/resources'
+         }
+    }
+}
  
 dependencies {
+
+    // local flat 
+    compile project (':federate-core')
+    compile 'iox.emf:fom2emf:0.0.1'
+    compile 'iox.emf:sds4emf:0.0.1'
+    
     compile 'org.eclipse.emf:org.eclipse.emf.common:2.12.0'
     compile 'org.eclipse.emf:org.eclipse.emf.ecore:2.12.0'
     compile 'org.eclipse.emf:org.eclipse.emf.ecore.xmi:2.12.0'
@@ -39,11 +53,9 @@ dependencies {
     compile 'org.apache.logging.log4j:log4j-core:2.9.0'
     compile 'org.apache.logging.log4j:log4j-api:2.9.0'
     compile 'com.lmax:disruptor:3.3.6'
-    compile 'iox.emf:fom2emf:0.0.1'
-    compile 'iox.emf:sds4emf:0.0.1'
     compile 'org.porticoproject:portico:2.1.0'
     compile 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.3.0'
     compile 'com.fasterxml.jackson.core:jackson-databind:2.2.3'
-    compile 'junit:junit:4.+'
-    compile 'iox.emf:littleEMF:0.0.2'
+    testCompile 'junit:junit:4.+'
+    testCompile 'iox.emf:littleEMF:0.0.4'
 }

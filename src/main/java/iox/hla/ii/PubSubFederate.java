@@ -19,19 +19,14 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.eclipse.emf.ecore.EAttribute;
 import org.eclipse.emf.ecore.EClass;
-import org.eclipse.emf.ecore.EClassifier;
 import org.eclipse.emf.ecore.EDataType;
 import org.eclipse.emf.ecore.EObject;
-import org.eclipse.emf.ecore.EPackage;
 import org.eclipse.emf.ecore.util.EcoreUtil;
 import org.ieee.standards.ieee1516._2010.AttributeType1;
-import org.ieee.standards.ieee1516._2010.DocumentRoot;
 import org.ieee.standards.ieee1516._2010.InteractionClassType;
 import org.ieee.standards.ieee1516._2010.ObjectClassType;
 import org.ieee.standards.ieee1516._2010.ObjectModelType;
 import org.ieee.standards.ieee1516._2010.SharingEnumerations;
-import org.ieee.standards.ieee1516._2010._2010Package;
-import org.ieee.standards.ieee1516._2010.util._2010ResourceFactoryImpl;
 import org.portico.impl.hla1516e.types.HLA1516eParameterHandleValueMap;
 import org.portico.impl.hla1516e.types.time.DoubleTime;
 
@@ -47,10 +42,7 @@ import hla.rti1516e.ObjectClassHandle;
 import hla.rti1516e.ObjectInstanceHandle;
 import hla.rti1516e.ParameterHandle;
 import hla.rti1516e.ParameterHandleValueMap;
-import hla.rti1516e.RTIambassador;
 import hla.rti1516e.ResignAction;
-import hla.rti1516e.RtiFactoryFactory;
-import hla.rti1516e.encoding.EncoderFactory;
 import hla.rti1516e.exceptions.AlreadyConnected;
 import hla.rti1516e.exceptions.AttributeNotDefined;
 import hla.rti1516e.exceptions.CallNotAllowedFromWithinCallback;
@@ -60,7 +52,6 @@ import hla.rti1516e.exceptions.CouldNotOpenFDD;
 import hla.rti1516e.exceptions.ErrorReadingFDD;
 import hla.rti1516e.exceptions.FederateNotExecutionMember;
 import hla.rti1516e.exceptions.FederateServiceInvocationsAreBeingReportedViaMOM;
-import hla.rti1516e.exceptions.FederationExecutionAlreadyExists;
 import hla.rti1516e.exceptions.InconsistentFDD;
 import hla.rti1516e.exceptions.InteractionClassNotDefined;
 import hla.rti1516e.exceptions.InteractionClassNotPublished;
@@ -78,60 +69,32 @@ import hla.rti1516e.exceptions.RTIinternalError;
 import hla.rti1516e.exceptions.RestoreInProgress;
 import hla.rti1516e.exceptions.SaveInProgress;
 import hla.rti1516e.exceptions.SynchronizationPointLabelNotAnnounced;
-import hla.rti1516e.exceptions.TimeConstrainedAlreadyEnabled;
-import hla.rti1516e.exceptions.TimeRegulationAlreadyEnabled;
 import hla.rti1516e.exceptions.UnsupportedCallbackModel;
-import hla.rti1516e.time.HLAfloat64Interval;
 import hla.rti1516e.time.HLAfloat64Time;
 import hla.rti1516e.time.HLAfloat64TimeFactory;
+import iox.hla.core.AbstractFederate;
+import iox.hla.core.FederateAmbassador;
+import iox.hla.core.InteractionRef;
+import iox.hla.core.ObjectRef;
+import iox.hla.core.RTIAmbassadorException;
+import iox.hla.core.federatecore.FederatecoreFactory;
+import iox.hla.core.federatecore.JoinInteraction;
+import iox.hla.core.federatecore.Message;
+import iox.hla.core.federatecore.ResignInteraction;
+import iox.hla.fom2emf.FOM;
 import iox.hla.ii.config.InteractionPublicationConfig;
-import iox.hla.ii.exception.RTIAmbassadorException;
-import iox.sds4emf.Deserialize;
-import pubsub.Message;
-import pubsub.PubsubFactory;
 
-public class PubSubFederate implements Runnable {
-	
+public class PubSubFederate extends AbstractFederate {
+
 	private static final Logger log = LogManager.getLogger(PubSubFederate.class);
 
-	private static final int MAX_JOIN_ATTEMPTS = 6;
-	private static final int REJOIN_DELAY_MS = 10000;
-
-	public static final String INTERACTION_NAME_ROOT = "HLAinteractionRoot";
-	public static final String OBJECT_NAME_ROOT = "HLAobjectRoot";
-
-	public enum State {
-		CONSTRUCTED, INITIALIZED, JOINED, TERMINATING;
-	};
-
-	public enum SYNCH_POINTS {
-		readyToPopulate, readyToRun, readyToResign
-	};
-
 	private State state = State.CONSTRUCTED;
-	private Double logicalTime;
 	private InteractionPublicationConfig iiConfig;
 	private Map<String, ObjectInstanceHandle> registeredObjects = new HashMap<String, ObjectInstanceHandle>();
-	private HLAfloat64TimeFactory timeFactory; // set when we join
-	protected EncoderFactory encoderFactory; // set when we join
 
-	RTIambassador getRtiAmb() {
-		return rtiAmb;
-	}
-
-	FederateAmbassador getFedAmb() {
-		return fedAmb;
-	}
-
-	private RTIambassador rtiAmb;
-	private FederateAmbassador fedAmb;
-	private ObjectModelType fom;
-	private URL[] foms;
 	// set of object names that have been created as injectable entities
 	private HashSet<String> discoveredObjects = new HashSet<String>();
 
-	private String federateName;
-	private String federationName;
 	private static String fomFilePath;
 
 	private Publish interObjectInjection;
@@ -142,45 +105,14 @@ public class PubSubFederate implements Runnable {
 
 	private AtomicBoolean advancing = new AtomicBoolean(false);
 
+	private URL[] foms;
+
 	public String getFomFilePath() {
 		return fomFilePath;
 	}
 
-	private double lookahead;
-
-	public State getState() {
-		return state;
-	}
-
-	public ObjectModelType getFom() {
-		return fom;
-	}
-
-	public String getFederateName() {
-		return federateName;
-	}
-
-	public String getFederationName() {
-		return federationName;
-	}
-
-	public double getStepsize() {
-		return stepsize;
-	}
-
-	private double stepsize;
-
 	public PubSubFederate() throws RTIAmbassadorException, ParserConfigurationException {
-
-		try {
-			rtiAmb = RtiFactoryFactory.getRtiFactory().getRtiAmbassador();
-			encoderFactory = RtiFactoryFactory.getRtiFactory().getEncoderFactory();
-			fedAmb = new FederateAmbassador(rtiAmb);
-			rtiAmb.connect(fedAmb, CallbackModel.HLA_EVOKED);
-		} catch (RTIinternalError | ConnectionFailed | InvalidLocalSettingsDesignator | UnsupportedCallbackModel
-				| AlreadyConnected | CallNotAllowedFromWithinCallback e) {
-			throw new RTIAmbassadorException(e);
-		}
+		super();
 	}
 
 	public void init() {
@@ -190,18 +122,38 @@ public class PubSubFederate implements Runnable {
 		}
 
 		try {
+			rtiAmb.connect(fedAmb, CallbackModel.HLA_EVOKED);
 			joinFederationExecution();
 			changeState(State.JOINED);
-
 			enableAsynchronousDelivery();
 			enableTimeConstrained();
 			enableTimeRegulation();
 			publishAndSubscribe();
-
-		} catch (InterruptedException | RTIAmbassadorException e) {
+		} catch (InterruptedException | RTIAmbassadorException | RTIinternalError | ConnectionFailed
+				| InvalidLocalSettingsDesignator | UnsupportedCallbackModel | AlreadyConnected
+				| CallNotAllowedFromWithinCallback e) {
 			log.error(e);
 		}
 		log.trace("<==init");
+	}
+
+	public Double advanceLogicalTime() throws RTIAmbassadorException {
+		advancing.set(true);
+		setLogicalTime(getLogicalTime() + getStepSize());
+		log.info("advancing logical time to " + getLogicalTime());
+		try {
+			fedAmb.setTimeAdvancing();
+			HLAfloat64Time time = getTimeFactory().makeTime(getLogicalTime());
+			rtiAmb.timeAdvanceRequest(time);
+		} catch (RTIexception e) {
+			throw new RTIAmbassadorException(e);
+		}
+		while (fedAmb.isTimeAdvancing()) {
+			tick();
+		}
+		log.info("advanced logical time to " + getLogicalTime());
+		advancing.set(false);
+		return getLogicalTime();
 	}
 
 	public void loadConfiguration(String filepath) throws IOException {
@@ -209,24 +161,25 @@ public class PubSubFederate implements Runnable {
 			throw new IllegalStateException("loadConfiguration cannot be called in the current state: " + state.name());
 		}
 
-		log.debug("loading injection federate configuration");
+		log.debug("Loading injection federate configuration=" + filepath);
 		Path configPath = Paths.get(filepath);
 		File configFile = configPath.toFile();
 		ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
 		iiConfig = mapper.readValue(configFile, InteractionPublicationConfig.class);
-		federateName = iiConfig.getFederateName();
-		log.debug("federate-name=" + federateName);
-		federationName = iiConfig.getFederation();
-		log.debug("federation=" + federationName);
+		setFederateName(iiConfig.getFederateName());
+		log.debug("federate-name=" + getFederateName());
+		setFederationName(iiConfig.getFederation());
+		log.debug("federation=" + getFederationName());
 		fomFilePath = iiConfig.getFomFile();
 		log.debug("fomFile=" + fomFilePath);
-		lookahead = iiConfig.getLookahead();
-		log.debug("lookahead=" + lookahead);
-		stepsize = iiConfig.getStepsize();
-		log.debug("stepsize=" + stepsize);
+		setLookahead(iiConfig.getLookahead());
+		log.debug("lookahead=" + getLookahead());
+		setStepSize(iiConfig.getStepsize());
+		log.debug("stepsize=" + getStepSize());
 		URL[] urls = { new File(fomFilePath).getAbsoluteFile().toURI().toURL() };
-		foms = urls;
-		fom = loadFOM();
+		this.foms = urls;
+		ObjectModelType fom = FOM.generateFOM(fomFilePath);
+		this.fom = fom;
 		changeState(State.INITIALIZED);
 	}
 
@@ -242,37 +195,25 @@ public class PubSubFederate implements Runnable {
 
 		try {
 			timeStepHook.beforeReadytoPopulate();
-			// rtiAmb.registerFederationSynchronizationPoint(
-			// SYNCH_POINTS.readyToPopulate.name(), null );
 			synchronize(SYNCH_POINTS.readyToPopulate);
 			timeStepHook.afterReadytoPopulate();
-		} catch (RTIAmbassadorException | RTIexception e) {
-			log.error(e);
-		}
 
-		try {
 			timeStepHook.beforeReadytoRun();
-			// rtiAmb.registerFederationSynchronizationPoint(
-			// SYNCH_POINTS.readyToRun.name(), null );
 			synchronize(SYNCH_POINTS.readyToRun);
 			timeStepHook.afterReadytoRun();
-		} catch (RTIAmbassadorException | RTIexception e) {
-			log.error(e);
-		}
 
-		try {
 			log.info("enter while==>" + state.name());
 			while (state != State.TERMINATING) {
 
 				handleMessages();
-				processIntObjs(logicalTime);
+				processIntObjs(getLogicalTime());
 
 				timeStepHook.beforeAdvanceLogicalTime();
 				advanceLogicalTime();
 				timeStepHook.afterAdvanceLogicalTime();
 
 			}
-		} catch (RTIAmbassadorException e) {
+		} catch (RTIAmbassadorException | CallNotAllowedFromWithinCallback | RTIinternalError e) {
 			log.error(e);
 		} finally {
 			try {
@@ -295,17 +236,19 @@ public class PubSubFederate implements Runnable {
 	}
 
 	private void processIntObjs(Double logicalTime) {
+		log.trace("processIntObjs==> logicalTime=" + logicalTime);		
 		Queue<EObject> interactions = null;
-		if (logicalTime == null) {
-			interactions = interObjectInjection.getPreSynchInteractions();
+		if (logicalTime == 0D) {
+			interactions = getInterObjectInjection().getPreSynchInteractions();
 		} else {
-			interactions = interObjectInjection.getPublications(logicalTime);
+			interactions = getInterObjectInjection().getPublications(logicalTime);
 		}
 
 		EObject def = null;
 		while ((def = interactions.poll()) != null) {
 			sendInteraction(def, logicalTime);
 		}
+		log.trace("<==processIntObjs");
 	}
 
 	private void handleMessages() throws RTIAmbassadorException {
@@ -316,19 +259,21 @@ public class PubSubFederate implements Runnable {
 			while ((receivedInteraction = fedAmb.nextInteraction()) != null) {
 				// log.trace("receivedInteraction=" + receivedInteraction);
 				receivedNothing = false;
-				EClass eClass = findEClass(receivedInteraction.getInteractionName());
+				String interactionClassName = rtiAmb.getInteractionClassName(receivedInteraction.getInteractionClassHandle());
+				EClass eClass = findEClass(interactionClassName);
+				log.debug("interactionClassName=" + interactionClassName + "eClass=" + eClass);
 				EObject eObject = EcoreUtil.create(eClass);
 
 				for (Map.Entry<ParameterHandle, byte[]> entry : receivedInteraction.getParameters().entrySet()) {
-					String interactionName = rtiAmb.getParameterName(receivedInteraction.getInteractionClassHandle(),
+					String parameterName = rtiAmb.getParameterName(receivedInteraction.getInteractionClassHandle(),
 							entry.getKey());
-					EAttribute eAttribute = (EAttribute) eClass.getEStructuralFeature(interactionName);
+					EAttribute eAttribute = (EAttribute) eClass.getEStructuralFeature(parameterName);
 					EDataType eDataType = eAttribute.getEAttributeType();
 					Object obj = EcoreUtil.createFromString(eDataType, new String(entry.getValue()));
 					eObject.eSet(eAttribute, obj);
 				}
 
-				interObjectReception.receiveInteraction(logicalTime, eObject);
+				getInterObjectReception().receiveInteraction(getLogicalTime(), eObject);
 			}
 
 			ObjectRef receivedObjectReflection;
@@ -336,18 +281,19 @@ public class PubSubFederate implements Runnable {
 				// log.trace("receivedObjectReflection=" +
 				// receivedObjectReflection);
 				receivedNothing = false;
-				EClass eClass = findEClass(receivedInteraction.getInteractionName());
+				String objectClassName = rtiAmb.getObjectClassName(receivedObjectReflection.getObjectClassHandle());
+				EClass eClass = findEClass(objectClassName);
 				EObject eObject = EcoreUtil.create(eClass);
 
-				for (Map.Entry<ParameterHandle, byte[]> entry : receivedInteraction.getParameters().entrySet()) {
-					String interactionName = rtiAmb.getParameterName(receivedInteraction.getInteractionClassHandle(),
+				for (Map.Entry<AttributeHandle, byte[]> entry : receivedObjectReflection.getAttributes().entrySet()) {
+					String attributeName = rtiAmb.getAttributeName(receivedObjectReflection.getObjectClassHandle(),
 							entry.getKey());
-					EAttribute eAttribute = (EAttribute) eClass.getEStructuralFeature(interactionName);
+					EAttribute eAttribute = (EAttribute) eClass.getEStructuralFeature(attributeName);
 					EDataType eDataType = eAttribute.getEAttributeType();
 					Object obj = EcoreUtil.createFromString(eDataType, new String(entry.getValue()));
 					eObject.eSet(eAttribute, obj);
 				}
-				interObjectReception.receiveObject(logicalTime, eObject);
+				getInterObjectReception().receiveObject(getLogicalTime(), eObject);
 			}
 
 			String removedObjectName;
@@ -361,27 +307,28 @@ public class PubSubFederate implements Runnable {
 
 			if (receivedNothing && !advancing.get()) {
 				DoubleTime lt = (DoubleTime) rtiAmb.queryLogicalTime();
-				Message msg = PubsubFactory.eINSTANCE.createMessage();
+				Message msg = FederatecoreFactory.eINSTANCE.createMessage();
 				msg.setMessage(String.format("%s %s", lt.toString(), "Nothing received!!"));
-				interObjectReception.receiveInteraction(logicalTime, msg);
+				getInterObjectReception().receiveInteraction(getLogicalTime(), msg);
 			}
 		} catch (RTIexception e) {
 			throw new RTIAmbassadorException(e);
 		}
 	}
 
-	EClass findEClass(String objectName) {
-		EClassifier eClassifier = null;
-		for (Map.Entry<String, Object> entry : EPackage.Registry.INSTANCE.entrySet()) {
-			String key = entry.getKey();
-			EPackage ePackage = EPackage.Registry.INSTANCE.getEPackage(key);
-			eClassifier = ePackage.getEClassifier(objectName);
-			if (eClassifier != null) {
-				break;
-			}
-		}
-		return (EClass) eClassifier;
-	}
+	// EClass findEClass(String objectName) {
+	// EClassifier eClassifier = null;
+	// for (Map.Entry<String, Object> entry : EPackage.Registry.INSTANCE.entrySet())
+	// {
+	// String key = entry.getKey();
+	// EPackage ePackage = EPackage.Registry.INSTANCE.getEPackage(key);
+	// eClassifier = ePackage.getEClassifier(objectName);
+	// if (eClassifier != null) {
+	// break;
+	// }
+	// }
+	// return (EClass) eClassifier;
+	// }
 
 	Map<String, byte[]> mapParameters(InteractionRef receivedInteraction) {
 		InteractionClassHandle interactionHandle = receivedInteraction.getInteractionClassHandle();
@@ -415,10 +362,6 @@ public class PubSubFederate implements Runnable {
 		return attributes;
 	}
 
-	public void tick() throws RTIAmbassadorException, CallNotAllowedFromWithinCallback, RTIinternalError {
-		rtiAmb.evokeMultipleCallbacks(0.1, 0.2);
-	}
-
 	private void joinFederationExecution() throws InterruptedException, RTIAmbassadorException {
 		boolean joinSuccessful = false;
 		log.trace("Trying to join...	");
@@ -429,74 +372,37 @@ public class PubSubFederate implements Runnable {
 				Thread.sleep(REJOIN_DELAY_MS);
 			}
 
-			log.info("joining federation " + federationName + " as " + federateName + " (" + i + ")");
+			log.info("joining federation " + getFederationName() + " as " + getFederateName() + " (" + i + ")");
 			try {
 				synchronized (rtiAmb) {
-					rtiAmb.createFederationExecution(federationName, foms);
-					rtiAmb.joinFederationExecution(federateName, federationName);
+					rtiAmb.joinFederationExecution(getFederateName(), getFederationName(), foms);
 				}
-				this.timeFactory = (HLAfloat64TimeFactory) rtiAmb.getTimeFactory();
+				setTimeFactory((HLAfloat64TimeFactory) rtiAmb.getTimeFactory());
 			} catch (SaveInProgress | RestoreInProgress | RTIinternalError | CouldNotCreateLogicalTimeFactory
 					| hla.rti1516e.exceptions.FederationExecutionDoesNotExist
 					| hla.rti1516e.exceptions.FederateAlreadyExecutionMember | NotConnected
 					| CallNotAllowedFromWithinCallback | hla.rti1516e.exceptions.FederateNotExecutionMember
-					| InconsistentFDD | ErrorReadingFDD | CouldNotOpenFDD | FederationExecutionAlreadyExists e) {
+					| InconsistentFDD | ErrorReadingFDD | CouldNotOpenFDD e) {
 				log.error("", e);
 			}
 			joinSuccessful = true;
 		}
 	}
 
-	// enable Receive Order messages during any tick call
-	public void enableAsynchronousDelivery() throws RTIAmbassadorException {
-		try {
-			log.info("enabling asynchronous delivery of receive order messages");
-			rtiAmb.enableAsynchronousDelivery();
-		} catch (RTIexception e) {
-			throw new RTIAmbassadorException(e);
-		}
-	}
-
-	private void enableTimeConstrained() throws RTIAmbassadorException {
-		try {
-			log.info("enabling time constrained");
-			rtiAmb.enableTimeConstrained();
-			while (fedAmb.isTimeConstrained() == false) {
-				tick();
-			}
-		} catch (TimeConstrainedAlreadyEnabled e) {
-			log.info("time constrained already enabled");
-		} catch (RTIexception e) {
-			throw new RTIAmbassadorException(e);
-		}
-	}
-
-	private void enableTimeRegulation() throws RTIAmbassadorException {
-		try {
-			log.info("enabling time regulation");
-			HLAfloat64Interval lookahead = timeFactory.makeInterval(fedAmb.getFederateLookahead());
-			rtiAmb.enableTimeRegulation(lookahead);
-			while (fedAmb.isTimeRegulating() == false) {
-				tick();
-			}
-		} catch (TimeRegulationAlreadyEnabled e) {
-			log.info("time regulation already enabled");
-		} catch (RTIexception e) {
-			throw new RTIAmbassadorException(e);
-		}
-	}
-
-	ObjectModelType loadFOM() {
-		Deserialize.associateExtension("xml", new _2010ResourceFactoryImpl());
-		Deserialize.registerPackage(_2010Package.eNS_URI, _2010Package.eINSTANCE);
-		DocumentRoot docRoot = (DocumentRoot) Deserialize.it(fomFilePath);
-		return docRoot.getObjectModel();
-	}
-
 	private void publishAndSubscribe() {
+		// These interactions are required.
+		JoinInteraction joinInteraction = FederatecoreFactory.eINSTANCE.createJoinInteraction();
+		joinInteraction.setFederateName(getFederateName());
+		publishInteraction(joinInteraction.eClass().getName());
+		interObjectInjection.addInteraction(joinInteraction);
+		ResignInteraction resignInteraction = FederatecoreFactory.eINSTANCE.createResignInteraction();
+		resignInteraction.setFederateName(getFederateName());
+		publishInteraction(resignInteraction.eClass().getName());
+		interObjectInjection.addInteraction(resignInteraction);
+
 		InteractionClassHandle handle = null;
 		for (InteractionClassType classType : getInteractionSubscribe()) {
-			log.info("creating HLA subscription for the interaction=" + classType.getName().getValue());
+			log.info("Creating HLA subscription for the interaction " + classType.getName().getValue());
 			try {
 				handle = rtiAmb.getInteractionClassHandle(classType.getName().getValue());
 				rtiAmb.subscribeInteractionClass(handle);
@@ -507,7 +413,7 @@ public class PubSubFederate implements Runnable {
 			}
 		}
 		for (InteractionClassType classType : getInteractionPublish()) {
-			log.info("creating HLA publication for the interaction=" + classType.getName().getValue());
+			log.info("Creating HLA publication for the interaction " + classType.getName().getValue());
 			try {
 				handle = rtiAmb.getInteractionClassHandle(classType.getName().getValue());
 				rtiAmb.publishInteractionClass(handle);
@@ -517,10 +423,10 @@ public class PubSubFederate implements Runnable {
 			}
 		}
 		for (ObjectClassType classType : getObjectSubscribe()) {
-			log.info("creating HLA subscription for the object=" + classType.getName().getValue());
+			log.info("Creating HLA subscription for the object " + classType.getName().getValue());
 			try {
 				String nname = formatObjectName(classType.getName().getValue());
-				log.info("creating HLA subscription for the object1=" + nname);
+				log.info("Creating HLA subscription for the object1 " + nname);
 				ObjectClassHandle objectHandle = rtiAmb.getObjectClassHandle(nname);
 				// AttributeHandleSet attributes =
 				// RtiFactoryFactory.getRtiFactory().createAttributeHandleSet();
@@ -537,11 +443,11 @@ public class PubSubFederate implements Runnable {
 			}
 		}
 		for (ObjectClassType classType : getObjectPublish()) {
-			log.info("creating HLA publication for the object=" + classType.getName().getValue());
+			log.info("Creating HLA publication for the object S" + classType.getName().getValue());
 			try {
 				String className = formatObjectName(classType.getName().getValue());
 				ObjectClassHandle classHandle = rtiAmb.getObjectClassHandle(className);
-				log.info("creating HLA publication for the object1=" + className);
+				log.info("Creating HLA publication for the object1 " + className);
 				AttributeHandleSet attributes = (AttributeHandleSet) rtiAmb.getAttributeHandleSetFactory().create();
 				for (AttributeType1 attribute : classType.getAttribute()) {
 					AttributeHandle attributeHandle = rtiAmb.getAttributeHandle(classHandle,
@@ -556,104 +462,51 @@ public class PubSubFederate implements Runnable {
 		}
 	}
 
+	public void sendInteraction(EObject eObject) {
+		sendInteraction(eObject, getLogicalTime());
+	}
+
 	public void sendInteraction(EObject eObject, Double logicalTime) {
 		ParameterHandleValueMap parameters = new HLA1516eParameterHandleValueMap();
 		EClass eClass = eObject.eClass();
 		String interactionName = eClass.getName();
-		InteractionClassHandle interactionHandle = null;
+		InteractionClassHandle interactionClassHandle = null;
 		try {
-			interactionHandle = rtiAmb.getInteractionClassHandle(interactionName);
+			interactionClassHandle = rtiAmb.getInteractionClassHandle(interactionName);
 		} catch (hla.rti1516e.exceptions.NameNotFound | hla.rti1516e.exceptions.FederateNotExecutionMember
-				| NotConnected | RTIinternalError e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
+				| NotConnected | RTIinternalError e) {
+			log.error("sendInteraction ", e);
 		}
-		for (EAttribute eAttribute : eClass.getEAllAttributes()) {
+		for (EAttribute eAttribute : eClass.getEAttributes()) {
 			EDataType eDataType = eAttribute.getEAttributeType();
 			Object value = eObject.eGet(eAttribute);
 			String parameterName = eAttribute.getName();
 			try {
-				ParameterHandle parameterHandle = rtiAmb.getParameterHandle(interactionHandle, parameterName);
+				ParameterHandle parameterHandle = rtiAmb.getParameterHandle(interactionClassHandle, parameterName);
 				parameters.put(parameterHandle, EcoreUtil.convertToString(eDataType, value).getBytes());
 			} catch (hla.rti1516e.exceptions.NameNotFound | InvalidInteractionClassHandle
 					| hla.rti1516e.exceptions.FederateNotExecutionMember | NotConnected | RTIinternalError e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				log.error("getEAllAttributes ", e);
 			}
 		}
-		sendInteraction(eClass.getName(), parameters, logicalTime);
+		sendInteraction(interactionClassHandle, parameters, logicalTime);
 	}
 
-	// public void injectInteraction(InterObjDef def, Double logicalTime) {
-	// injectInteraction(def.getName(), def.getParameters(), logicalTime);
-	// }
-
-	public void sendInteraction(String interactionName, ParameterHandleValueMap parameters, Double logicalTime) {
-		InteractionClassHandle interactionHandle;
+	void sendInteraction(InteractionClassHandle interactionClassHandle, ParameterHandleValueMap parameters, Double logicalTime) {
 		try {
-			interactionHandle = rtiAmb.getInteractionClassHandle(interactionName);
-			log.debug("interactionName=" + interactionName);
-			log.debug("interactionHandle=" + interactionHandle);
-			if (logicalTime == null) {
-				rtiAmb.sendInteraction(interactionHandle, parameters, generateTag());
+			log.trace("interactionClassHandle=" + interactionClassHandle + " parameters=" + parameters.size() + " logicalTime=" + getLogicalTime());
+			if (getLogicalTime() == 0D) {
+				rtiAmb.sendInteraction(interactionClassHandle, parameters, generateTag());
 			} else {
-				HLAfloat64Time time = timeFactory.makeTime(fedAmb.getFederateTime() + fedAmb.getFederateLookahead());
-				rtiAmb.sendInteraction(interactionHandle, parameters, generateTag(), time);
+				HLAfloat64Time time = getTimeFactory().makeTime(getLogicalTime() + getLookahead());
+				rtiAmb.sendInteraction(interactionClassHandle, parameters, generateTag(), time);
 			}
 		} catch (RTIinternalError | InteractionClassNotPublished | InteractionParameterNotDefined
 				| hla.rti1516e.exceptions.InteractionClassNotDefined | SaveInProgress | RestoreInProgress
-				| hla.rti1516e.exceptions.FederateNotExecutionMember | NotConnected | InvalidLogicalTime
-				| hla.rti1516e.exceptions.NameNotFound e) {
+				| hla.rti1516e.exceptions.FederateNotExecutionMember | NotConnected | InvalidLogicalTime e) {
 			log.error("", e);
 		}
 	}
-
-	// private byte[] convertToByteArray(double value) {
-	// ByteBuffer buffer = ByteBuffer.allocate(8);
-	// buffer.putDouble(value);
-	// return buffer.array();
-	//
-	// }
-
-	// public SuppliedParameters assembleParameters(InteractionClassHandle
-	// interactionHandle, Map<String, String> parameters) {
-	// SuppliedParameters suppliedParameters = null;
-	// try {
-	// suppliedParameters =
-	// RtiFactoryFactory.getRtiFactory().createSuppliedParameters();
-	// for (Map.Entry<String, String> entry : parameters.entrySet()) {
-	// ParameterHandle parameterHandle =
-	// rtiAmb.getParameterHandle(interactionHandle, entry.getKey());
-	// byte[] parameterValue = entry.getValue().getBytes();
-	// suppliedParameters.add(parameterHandle, parameterValue);
-	// }
-	// } catch (NameNotFound | FederateNotExecutionMember | RTIinternalError e) {
-	// log.error("", e);
-	// } catch (InteractionClassNotDefined e) {
-	// log.error("", e);
-	// }
-	// return suppliedParameters;
-	// }
-
-	// public void updateObject(InterObjDef def) {
-	// int classHandle = -1;
-	// ObjectClassHandle objectHandle = -1;
-	// try {
-	// classHandle = getRtiAmb().getObjectClassHandle(def.getName());
-	// objectHandle = getRtiAmb().registerObjectInstance(classHandle);
-	// updateObject(classHandle, objectHandle, def.getParameters());
-	// } catch (NullPointerException | FederateNotExecutionMember | RTIinternalError
-	// | NameNotFound
-	// | ObjectClassNotDefined | ObjectClassNotPublished | SaveInProgress |
-	// RestoreInProgress
-	// | ConcurrentAccessAttempted e) {
-	// log.debug("registeredObjects=" + registeredObjects);
-	// log.debug("def=" + def);
-	// log.debug("classHandle=" + classHandle);
-	// log.debug("objectHandle=" + objectHandle);
-	// log.error(e);
-	// }
-	// }
 
 	public void updateObject(ObjectClassHandle classHandle, ObjectInstanceHandle objectHandle,
 			AttributeHandleValueMap attributes) {
@@ -669,48 +522,19 @@ public class PubSubFederate implements Runnable {
 		}
 	}
 
-	// public SuppliedAttributes assembleAttributes(int classHandle, Map<String,
-	// String> attributes) {
-	// SuppliedAttributes suppliedAttributes = null;
-	// try {
-	// suppliedAttributes =
-	// RtiFactoryFactory.getRtiFactory().createSuppliedAttributes();
-	// for (Map.Entry<String, String> entry : attributes.entrySet()) {
-	// int attributeHandle = rtiAmb.getAttributeHandle(entry.getKey(), classHandle);
-	// byte[] attributeValue = entry.getValue().getBytes();
-	// suppliedAttributes.add(attributeHandle, attributeValue);
-	// }
-	// } catch (RTIinternalError e) {
-	// log.error("", e);
-	// } catch (ObjectClassNotDefined e) {
-	// log.error("", e);
-	// } catch (NameNotFound e) {
-	// log.error("", e);
-	// } catch (FederateNotExecutionMember e) {
-	// log.error("", e);
-	// }
-	// return suppliedAttributes;
-	// }
-
-	// public int publishInteraction(InterObjDef def) {
-	// return publishInteraction(def.getName());
-	// }
-
 	public InteractionClassHandle publishInteraction(String interactionName) {
-		InteractionClassHandle classHandle = null;
+		InteractionClassHandle interactionHandle = null;
 		try {
-			classHandle = getRtiAmb().getInteractionClassHandle(interactionName);
-			getRtiAmb().publishInteractionClass(classHandle);
+			interactionHandle = rtiAmb.getInteractionClassHandle(interactionName);
+			log.debug("interactionName=" + interactionName);
+			log.debug("interactionHandle=" + interactionHandle);
+			rtiAmb.publishInteractionClass(interactionHandle);
 		} catch (InteractionClassNotDefined | FederateNotExecutionMember | SaveInProgress | RestoreInProgress
 				| RTIinternalError | NameNotFound | NotConnected e) {
 			log.error(e);
 		}
-		return classHandle;
+		return interactionHandle;
 	}
-
-	// public ObjectClassHandle publishObject(InterObjDef def) {
-	// return publishObject(def.getName(), def.getParameters());
-	// }
 
 	public ObjectClassHandle publishObject(String objectName, Map<AttributeHandle, byte[]> attrMap) {
 		String[] attrs = (String[]) attrMap.keySet().toArray(new String[0]);
@@ -755,7 +579,26 @@ public class PubSubFederate implements Runnable {
 		return ("" + System.currentTimeMillis()).getBytes();
 	}
 
-	private void synchronize(SYNCH_POINTS point) throws RTIAmbassadorException, RTIexception {
+	@Override
+	public void readyToPopulate() {
+		try {
+			synchronize(SYNCH_POINTS.readyToPopulate);
+		} catch (CallNotAllowedFromWithinCallback | RTIinternalError | RTIAmbassadorException e) {
+			log.error(e);
+		}
+	}
+
+	@Override
+	public void readyToRun() {
+		try {
+			synchronize(SYNCH_POINTS.readyToRun);
+		} catch (CallNotAllowedFromWithinCallback | RTIinternalError | RTIAmbassadorException e) {
+			log.error(e);
+		}
+	}
+
+	private void synchronize(SYNCH_POINTS point)
+			throws CallNotAllowedFromWithinCallback, RTIinternalError, RTIAmbassadorException {
 		log.info("waiting for announcement of the synchronization point " + point);
 		while (!fedAmb.isSynchronizationPointPending(point.name())) {
 			tick();
@@ -765,17 +608,8 @@ public class PubSubFederate implements Runnable {
 			synchronized (rtiAmb) {
 				rtiAmb.synchronizationPointAchieved(point.name());
 			}
-		} catch (SynchronizationPointLabelNotAnnounced e) {
-			log.error(e);
-		} catch (hla.rti1516e.exceptions.SaveInProgress e) {
-			log.error(e);
-		} catch (hla.rti1516e.exceptions.RestoreInProgress e) {
-			log.error(e);
-		} catch (hla.rti1516e.exceptions.FederateNotExecutionMember e) {
-			log.error(e);
-		} catch (NotConnected e) {
-			log.error(e);
-		} catch (hla.rti1516e.exceptions.RTIinternalError e) {
+		} catch (SynchronizationPointLabelNotAnnounced | SaveInProgress | RestoreInProgress | FederateNotExecutionMember
+				| NotConnected | RTIinternalError e) {
 			log.error(e);
 		}
 
@@ -785,32 +619,29 @@ public class PubSubFederate implements Runnable {
 		}
 		log.info("federation synchronized on " + point.name());
 	}
-
-	public Double advanceLogicalTime() throws RTIAmbassadorException {
-		advancing.set(true);
-		logicalTime = fedAmb.getLogicalTime() + stepsize;
-		log.info("advancing logical time to " + logicalTime);
-		try {
-			fedAmb.setTimeAdvancing();
-			HLAfloat64Time time = timeFactory.makeTime(fedAmb.getFederateTime() + logicalTime);
-			rtiAmb.timeAdvanceRequest(time);
-		} catch (RTIexception e) {
-			throw new RTIAmbassadorException(e);
-		}
-		while (fedAmb.isTimeAdvancing() == true) {
-			try {
-				tick();
-			} catch (CallNotAllowedFromWithinCallback | RTIinternalError e) {
-				log.error(e);
-			}
-		}
-		log.info("advanced logical time to " + fedAmb.getLogicalTime());
-		advancing.set(false);
-		return logicalTime;
-	}
+	//
+	// public Double advanceLogicalTime() throws RTIAmbassadorException {
+	// advancing.set(true);
+	// setLogicalTime(fedAmb.getLogicalTime() + getStepsize());
+	// log.info("advancing logical time to " + getLogicalTime());
+	// try {
+	// fedAmb.setTimeAdvancing();
+	// HLAfloat64Time time = getTimeFactory().makeTime(fedAmb.getFederateTime() +
+	// getLogicalTime());
+	// rtiAmb.timeAdvanceRequest(time);
+	// } catch (RTIexception e) {
+	// throw new RTIAmbassadorException(e);
+	// }
+	// while (fedAmb.isTimeAdvancing() == true) {
+	// tick();
+	// }
+	// log.info("advanced logical time to " + fedAmb.getLogicalTime());
+	// advancing.set(false);
+	// return getLogicalTime();
+	// }
 
 	private void resignFederationExecution() throws RTIAmbassadorException {
-		log.info("resigning from the federation execution " + federationName);
+		log.info("resigning from the federation execution " + getFederationName());
 		try {
 			rtiAmb.resignFederationExecution(ResignAction.NO_ACTION);
 		} catch (RTIexception e) {
@@ -818,42 +649,45 @@ public class PubSubFederate implements Runnable {
 		}
 	}
 
-	public Set<InteractionClassType> getInteractionSubscribe() {
-		Set<InteractionClassType> set = new HashSet<InteractionClassType>();
-		for (InteractionClassType itr : getFom().getInteractions().getInteractionClass().getInteractionClass()) {
-			getInteractions(set, itr, SharingEnumerations.SUBSCRIBE);
-		}
-
-		return set;
-	}
+	// public Set<InteractionClassType> getInteractionSubscribe() {
+	// Set<InteractionClassType> set = new HashSet<InteractionClassType>();
+	// for (InteractionClassType itr :
+	// fom.getInteractions().getInteractionClass().getInteractionClass()) {
+	// getInteractions(set, itr, SharingEnumerations.SUBSCRIBE);
+	// }
+	//
+	// return set;
+	// }
 
 	public Set<InteractionClassType> getInteractionPublish() {
 		Set<InteractionClassType> set = new HashSet<InteractionClassType>();
-		for (InteractionClassType itr : getFom().getInteractions().getInteractionClass().getInteractionClass()) {
+		for (InteractionClassType itr : fom.getInteractions().getInteractionClass().getInteractionClass()) {
 			getInteractions(set, itr, SharingEnumerations.PUBLISH);
 		}
 
 		return set;
 	}
 
-	public Set<InteractionClassType> getInteractions(Set<InteractionClassType> set, InteractionClassType itr,
-			SharingEnumerations pubsub) {
-		if (itr.getSharing() != null) {
-			if (itr.getSharing().getValue() == pubsub
-					|| itr.getSharing().getValue() == SharingEnumerations.PUBLISH_SUBSCRIBE) {
-				set.add(itr);
-				log.trace("added InteractionClassType.name=" + itr.getName().getValue() + "size=" + set.size());
-			}
-		}
-		for (InteractionClassType itr1 : itr.getInteractionClass()) {
-			getInteractions(set, itr1, pubsub);
-		}
-		return set;
-	}
+	// public Set<InteractionClassType> getInteractions(Set<InteractionClassType>
+	// set, InteractionClassType itr,
+	// SharingEnumerations pubsub) {
+	// if (itr.getSharing() != null) {
+	// if (itr.getSharing().getValue() == pubsub
+	// || itr.getSharing().getValue() == SharingEnumerations.PUBLISH_SUBSCRIBE) {
+	// set.add(itr);
+	// log.trace("added InteractionClassType.name=" + itr.getName().getValue() +
+	// "size=" + set.size());
+	// }
+	// }
+	// for (InteractionClassType itr1 : itr.getInteractionClass()) {
+	// getInteractions(set, itr1, pubsub);
+	// }
+	// return set;
+	// }
 
 	public Set<ObjectClassType> getObjectSubscribe() {
 		Set<ObjectClassType> set = new HashSet<ObjectClassType>();
-		for (ObjectClassType oct : getFom().getObjects().getObjectClass().getObjectClass()) {
+		for (ObjectClassType oct : fom.getObjects().getObjectClass().getObjectClass()) {
 			log.debug("getObjectSubscribe=" + oct.getName().getValue());
 			ObjectClassType oct1 = EcoreUtil.copy(oct);
 			getObjects(set, oct1, SharingEnumerations.SUBSCRIBE);
@@ -864,7 +698,7 @@ public class PubSubFederate implements Runnable {
 
 	public Set<ObjectClassType> getObjectPublish() {
 		Set<ObjectClassType> set = new HashSet<ObjectClassType>();
-		for (ObjectClassType oct : getFom().getObjects().getObjectClass().getObjectClass()) {
+		for (ObjectClassType oct : fom.getObjects().getObjectClass().getObjectClass()) {
 			log.debug("getObjectPublish=" + oct.getName().getValue());
 			ObjectClassType oct1 = EcoreUtil.copy(oct);
 			getObjects(set, oct1, SharingEnumerations.PUBLISH);
@@ -898,6 +732,9 @@ public class PubSubFederate implements Runnable {
 	}
 
 	public Publish getInterObjectInjection() {
+		if (interObjectInjection == null) {
+			interObjectInjection = new PublishImpl();
+		}
 		return interObjectInjection;
 	}
 
@@ -906,6 +743,9 @@ public class PubSubFederate implements Runnable {
 	}
 
 	public Subscribe getInterObjectReception() {
+		if (interObjectReception == null) {
+			interObjectReception = new SubscribeImpl();
+		}
 		return interObjectReception;
 	}
 
@@ -936,15 +776,15 @@ public class PubSubFederate implements Runnable {
 
 	public double startLogicalTime() {
 		advancing.set(true);
-		return logicalTime;
+		return getLogicalTime();
 	}
 
-	Double getLogicalTime() {
-		return logicalTime;
+	public FederateAmbassador getFedAmb() {
+		return fedAmb;
 	}
 
-	void setLogicalTime(Double logicalTime) {
-		this.logicalTime = logicalTime;
+	public void setFedAmb(FederateAmbassador fedAmb) {
+		this.fedAmb = fedAmb;
 	}
 
 }
