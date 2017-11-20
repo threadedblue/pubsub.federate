@@ -2,6 +2,7 @@ package iox.hla.ii;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
 import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -13,6 +14,12 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import javax.management.InstanceAlreadyExistsException;
+import javax.management.MBeanRegistrationException;
+import javax.management.MBeanServer;
+import javax.management.MalformedObjectNameException;
+import javax.management.NotCompliantMBeanException;
+import javax.management.ObjectName;
 import javax.xml.parsers.ParserConfigurationException;
 
 import org.apache.logging.log4j.LogManager;
@@ -117,6 +124,17 @@ public class PubSubFederate extends AbstractFederate {
 
 	public void init() {
 		log.trace("init==>");
+
+		try {
+			MBeanServer server = ManagementFactory.getPlatformMBeanServer();
+			ObjectName eyeName = new ObjectName("EyePubSubMBean:type=EyePubSub");
+			EyePubSub eye = new EyePubSub(this);
+			server.registerMBean(eye, eyeName);
+		} catch (InstanceAlreadyExistsException | MBeanRegistrationException | NotCompliantMBeanException
+				| MalformedObjectNameException e) {
+			log.error(e);
+		}
+
 		if (state != State.INITIALIZED) {
 			throw new IllegalStateException("execute cannot be called in the current state: " + state.name());
 		}
@@ -236,7 +254,7 @@ public class PubSubFederate extends AbstractFederate {
 	}
 
 	private void processIntObjs(Double logicalTime) {
-		log.trace("processIntObjs==> logicalTime=" + logicalTime);		
+		log.trace("processIntObjs==> logicalTime=" + logicalTime);
 		Queue<EObject> interactions = null;
 		if (logicalTime == 0D) {
 			interactions = getInterObjectInjection().getPreSynchInteractions();
@@ -259,7 +277,8 @@ public class PubSubFederate extends AbstractFederate {
 			while ((receivedInteraction = fedAmb.nextInteraction()) != null) {
 				// log.trace("receivedInteraction=" + receivedInteraction);
 				receivedNothing = false;
-				String interactionClassName = rtiAmb.getInteractionClassName(receivedInteraction.getInteractionClassHandle());
+				String interactionClassName = rtiAmb
+						.getInteractionClassName(receivedInteraction.getInteractionClassHandle());
 				EClass eClass = findEClass(interactionClassName);
 				log.debug("interactionClassName=" + interactionClassName + "eClass=" + eClass);
 				EObject eObject = EcoreUtil.create(eClass);
@@ -315,20 +334,6 @@ public class PubSubFederate extends AbstractFederate {
 			throw new RTIAmbassadorException(e);
 		}
 	}
-
-	// EClass findEClass(String objectName) {
-	// EClassifier eClassifier = null;
-	// for (Map.Entry<String, Object> entry : EPackage.Registry.INSTANCE.entrySet())
-	// {
-	// String key = entry.getKey();
-	// EPackage ePackage = EPackage.Registry.INSTANCE.getEPackage(key);
-	// eClassifier = ePackage.getEClassifier(objectName);
-	// if (eClassifier != null) {
-	// break;
-	// }
-	// }
-	// return (EClass) eClassifier;
-	// }
 
 	Map<String, byte[]> mapParameters(InteractionRef receivedInteraction) {
 		InteractionClassHandle interactionHandle = receivedInteraction.getInteractionClassHandle();
@@ -492,9 +497,11 @@ public class PubSubFederate extends AbstractFederate {
 		sendInteraction(interactionClassHandle, parameters, logicalTime);
 	}
 
-	void sendInteraction(InteractionClassHandle interactionClassHandle, ParameterHandleValueMap parameters, Double logicalTime) {
+	void sendInteraction(InteractionClassHandle interactionClassHandle, ParameterHandleValueMap parameters,
+			Double logicalTime) {
 		try {
-			log.trace("interactionClassHandle=" + interactionClassHandle + " parameters=" + parameters.size() + " logicalTime=" + getLogicalTime());
+			log.trace("interactionClassHandle=" + interactionClassHandle + " parameters=" + parameters.size()
+					+ " logicalTime=" + getLogicalTime());
 			if (getLogicalTime() == 0D) {
 				rtiAmb.sendInteraction(interactionClassHandle, parameters, generateTag());
 			} else {

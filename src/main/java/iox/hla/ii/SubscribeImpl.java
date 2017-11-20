@@ -12,7 +12,6 @@ public class SubscribeImpl implements Subscribe {
 	@Override
 	public EObject receiveInteraction(Double timeStep, EObject interaction) {
 		EClass eClass = interaction.eClass();
-//		if("TerminateInteraction".eClass.getName())
 		return interaction;
 	}
 

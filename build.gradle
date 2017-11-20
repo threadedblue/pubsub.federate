@@ -9,7 +9,7 @@ version = '0.0.1'
 configure(install.repositories.mavenInstaller) {
     pom.project {
         groupId group
-        artifactId 'pubsub-federate'
+        artifactId 'emf4blockchain'
         inceptionYear '2017'
         packaging 'jar'
     }
